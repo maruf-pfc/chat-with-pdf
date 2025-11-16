@@ -1,3 +1,6 @@
 env
 dist
 node_modules
+__pycache__
+data.pdf
+.env
