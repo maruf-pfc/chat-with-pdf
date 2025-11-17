@@ -1,8 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException # type: ignore
-from pypdf import PdfReader # type: ignore
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from pypdf import PdfReader
 import os
-from groq import Groq # type: ignore
-import psycopg2 # type: ignore
+from groq import Groq
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -67,7 +67,7 @@ def chunk_text(text, max_tokens=300):
 # ----------------------------
 def generate_embedding(text):
     response = client.embeddings.create(
-        model="text-embedding-3-large",
+        model="text-embedding-ada-002",
         input=text
     )
 
