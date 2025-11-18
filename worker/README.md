@@ -40,5 +40,5 @@ uvicorn main:app --reload --port 8000
 
 ```bash
 curl -X POST "http://localhost:8000/process-pdf" \
-  -F "file=data.pdf"
+  -F "file=file_name.pdf"
 ```
