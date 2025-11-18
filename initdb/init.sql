@@ -12,10 +12,10 @@ CREATE TABLE chunks (
     document_id INT REFERENCES documents(id) ON DELETE CASCADE,
     chunk_index INT NOT NULL,
     chunk_text TEXT NOT NULL,
-    embedding VECTOR(1536),
+    embedding VECTOR(384),
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_chunks_embedding
+CREATE INDEX idx_chunks_embedding
 ON chunks USING ivfflat (embedding vector_cosine_ops)
 WITH (lists = 100);

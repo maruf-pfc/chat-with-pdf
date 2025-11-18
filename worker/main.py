@@ -1,16 +1,16 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pypdf import PdfReader
 import os
-from groq import Groq
 import psycopg2
 from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
 app = FastAPI()
 
 # ----------------------------
-# Connect to PostgreSQL + pgvector
+# DB connection
 # ----------------------------
 def get_db():
     return psycopg2.connect(
@@ -22,12 +22,12 @@ def get_db():
     )
 
 # ----------------------------
-# Groq client
+# Local embedding model
 # ----------------------------
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 # ----------------------------
-# PDF → Text extractor
+# PDF → Text
 # ----------------------------
 def extract_pdf_text(pdf_file):
     reader = PdfReader(pdf_file)
@@ -37,7 +37,7 @@ def extract_pdf_text(pdf_file):
         text += page.extract_text() + "\n"
 
     if not text.strip():
-        raise ValueError("Failed to extract text from PDF")
+        raise ValueError("Empty PDF")
 
     return text
 
@@ -45,14 +45,13 @@ def extract_pdf_text(pdf_file):
 # ----------------------------
 # Chunking logic
 # ----------------------------
-def chunk_text(text, max_tokens=300):
+def chunk_text(text, max_words=300):
     words = text.split()
-    chunks = []
-    current = []
+    chunks, current = [], []
 
     for w in words:
         current.append(w)
-        if len(current) >= max_tokens:
+        if len(current) >= max_words:
             chunks.append(" ".join(current))
             current = []
 
@@ -63,19 +62,15 @@ def chunk_text(text, max_tokens=300):
 
 
 # ----------------------------
-# Embedding generator (Groq)
+# Generate Embedding (local)
 # ----------------------------
 def generate_embedding(text):
-    response = client.embeddings.create(
-        model="text-embedding-ada-002",
-        input=text
-    )
-
-    return response.data[0].embedding
+    emb = model.encode(text)
+    return emb.tolist()
 
 
 # ----------------------------
-# API: Upload PDF
+# Upload PDF API
 # ----------------------------
 @app.post("/process-pdf")
 async def process_pdf(file: UploadFile = File(...)):
@@ -88,22 +83,22 @@ async def process_pdf(file: UploadFile = File(...)):
     conn = get_db()
     cur = conn.cursor()
 
-    # Save document meta
+    # Save doc record
     cur.execute(
         "INSERT INTO documents (filename, total_chunks) VALUES (%s, %s) RETURNING id",
         (file.filename, len(chunks))
     )
     doc_id = cur.fetchone()[0]
 
-    # Store chunks + embeddings
-    for chunk in chunks:
-        embedding = generate_embedding(chunk)
+    # Insert chunks
+    for idx, chunk in enumerate(chunks):
+        emb = generate_embedding(chunk)
         cur.execute(
             """
-            INSERT INTO chunks (doc_id, content, embedding)
-            VALUES (%s, %s, %s)
+            INSERT INTO chunks (document_id, chunk_index, chunk_text, embedding)
+            VALUES (%s, %s, %s, %s)
             """,
-            (doc_id, chunk, embedding)
+            (doc_id, idx, chunk, emb)
         )
 
     conn.commit()
@@ -111,7 +106,7 @@ async def process_pdf(file: UploadFile = File(...)):
     conn.close()
 
     return {
-        "message": "PDF processed",
-        "chunks": len(chunks),
-        "document_id": doc_id
+        "message": "PDF processed successfully",
+        "document_id": doc_id,
+        "total_chunks": len(chunks)
     }

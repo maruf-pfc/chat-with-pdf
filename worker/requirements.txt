@@ -6,3 +6,6 @@ psycopg2-binary
 requests
 groq
 python-multipart
+sentence-transformers
+numpy
+torch
