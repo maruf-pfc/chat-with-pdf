@@ -4,10 +4,13 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+from pydantic import BaseModel
 
 load_dotenv()
 
 app = FastAPI()
+
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 # ----------------------------
 # DB connection
@@ -110,3 +113,43 @@ async def process_pdf(file: UploadFile = File(...)):
         "document_id": doc_id,
         "total_chunks": len(chunks)
     }
+
+# --------------------------------
+# VECTOR SEARCH ENDPOINT
+# --------------------------------
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 5
+
+
+@app.post("/search")
+async def search(body: SearchRequest):
+    query = body.query
+    top_k = body.top_k
+
+    embedding = model.encode(query).tolist()
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT chunk_text, 1 - (embedding <=> %s::vector) AS score
+        FROM chunks
+        ORDER BY embedding <=> %s::vector
+        LIMIT %s;
+        """,
+        (embedding, embedding, top_k)
+    )
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return {
+        "query": query,
+        "results": [
+            {"text": r[0], "score": float(r[1])}
+            for r in rows
+        ]
+    }
+
