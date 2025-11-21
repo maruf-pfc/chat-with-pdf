@@ -5,7 +5,7 @@ import * as FormData from "form-data";
 @Injectable()
 export class ChatpdfService {
   private worker = axios.create({
-    baseURL: process.env.PY_WORKER_URL, // e.g. http://localhost:8000
+    baseURL: process.env.PY_WORKER_URL,
     timeout: 15000,
   });
 
