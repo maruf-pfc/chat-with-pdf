@@ -5,13 +5,11 @@ import * as FormData from "form-data";
 @Injectable()
 export class ChatpdfService {
   private worker = axios.create({
-    baseURL: process.env.PY_WORKER_URL,
-    timeout: 15000,
+    baseURL: process.env.PY_WORKER_URL, // http://localhost:8000
+    timeout: 20000,
   });
 
-  // ------------------
   // Upload PDF
-  // ------------------
   async uploadPDF(file: Express.Multer.File) {
     try {
       const form = new FormData();
@@ -20,10 +18,8 @@ export class ChatpdfService {
         contentType: file.mimetype,
       });
 
-      const headers = form.getHeaders();
-
       const res = await this.worker.post("/process-pdf", form, {
-        headers,
+        headers: form.getHeaders(),
       });
 
       return res.data;
@@ -33,9 +29,7 @@ export class ChatpdfService {
     }
   }
 
-  // ------------------
-  // Ask RAG question
-  // ------------------
+  // Ask RAG
   async askQuestion(payload: any) {
     try {
       const res = await this.worker.post("/ask", payload);

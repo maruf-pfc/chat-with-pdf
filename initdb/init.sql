@@ -1,8 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Optional for UUID support:
--- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TABLE documents (
     id SERIAL PRIMARY KEY,
     filename TEXT NOT NULL,
@@ -23,14 +20,14 @@ CREATE TABLE chunks (
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
     session_id TEXT NOT NULL,
-    role TEXT NOT NULL,     
+    role TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_chunks_embedding
-ON chunks USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 100);
+    ON chunks USING ivfflat (embedding vector_cosine_ops)
+    WITH (lists = 100);
 
 CREATE INDEX idx_messages_session
-ON messages (session_id);
+    ON messages (session_id);
